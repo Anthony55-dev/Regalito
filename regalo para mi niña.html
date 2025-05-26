@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Carta Interactiva</title>
+<style>
+  body {
+    margin: 0; padding: 0;
+    background: black;
+    color: white;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #container {
+    perspective: 1500px;
+    margin-top: 40px;
+  }
+
+  .envelope {
+    width: 300px;
+    height: 200px;
+    position: relative;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transition: transform 1.8s ease, top 1.2s ease;
+    margin: 0 auto;
+    top: 0;
+  }
+
+  .envelope.open {
+    transform: rotateY(-140deg);
+    top: 20px;
+  }
+
+  .back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: #111;
+    border: 3px solid white;
+    border-radius: 10px;
+    box-sizing: border-box;
+    backface-visibility: hidden;
+    z-index: 1;
+  }
+
+  .front {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: #111;
+    border: 3px solid white;
+    border-radius: 10px;
+    box-sizing: border-box;
+    transform-origin: left center;
+    backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.8em;
+    font-weight: bold;
+    text-shadow: 0 0 5px white;
+    padding-left: 30px;
+    padding-right: 20px;
+    z-index: 2;
+  }
+
+  .inside-text {
+    margin-bottom: 20px;
+  }
+
+  .rose-container {
+    width: 120px;
+    height: 120px;
+    filter: drop-shadow(0 0 8px lime) drop-shadow(0 0 10px deepskyblue);
+    transform-origin: center bottom;
+    transform: scale(0);
+    transition: transform 3s ease;
+  }
+
+  .envelope.open .rose-container {
+    transform: scale(1);
+  }
+
+  .moved-up {
+    position: relative;
+    top: -150px;
+    transition: top 1.5s ease;
+  }
+
+  #question {
+    margin-top: 30px;
+    font-size: 1.7em;
+    opacity: 0;
+    color: white;
+    transition: opacity 2s ease;
+  }
+
+  #question.visible {
+    opacity: 1;
+  }
+
+  .btn-container {
+    margin-top: 15px;
+    opacity: 0;
+    transition: opacity 2s ease;
+  }
+
+  .btn-container.visible {
+    opacity: 1;
+  }
+
+  button {
+    font-size: 1.2em;
+    padding: 10px 20px;
+    margin: 0 15px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+  }
+
+  button#yes {
+    background: #4caf50;
+    color: white;
+  }
+
+  button#no {
+    background: #f44336;
+    color: white;
+  }
+
+  #popup {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #111;
+    border: 3px solid white;
+    border-radius: 12px;
+    padding: 25px 35px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+    z-index: 10;
+  }
+
+  #popup input {
+    font-size: 1.2em;
+    padding: 8px 10px;
+    margin-top: 15px;
+    border-radius: 6px;
+    border: 2px solid white;
+    background: #222;
+    color: white;
+    outline: none;
+  }
+
+  #popup button {
+    margin-top: 20px;
+    background: #2196f3;
+    color: white;
+  }
+
+  #success-screen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: black;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    z-index: 20;
+    user-select: none;
+  }
+
+  #success-screen .blur-text {
+    position: relative;
+    font-size: 3em;
+    color: #ff66cc;
+    filter: blur(3px);
+    user-select: none;
+    margin-bottom: 20px;
+    z-index: 30; /* por encima del canvas */
+  }
+
+  #matrix-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 20; /* debajo del texto pero sobre fondo */
+  }
+
+  .particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 35;
+    opacity: 1;
+  }
+
+  #retry {
+    margin-top: 15px;
+    background: #ff4081;
+  }
+</style>
+</head>
+<body>
+
+<div id="container">
+  <div class="envelope" id="envelope" title="Haz clic para abrir la carta">
+    <div class="back"></div>
+    <div class="front">
+      <div class="inside-text">feliz cumpleaños</div>
+      <div class="rose-container" id="roseContainer">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Blue_rose.svg/1200px-Blue_rose.svg.png" alt="Rosa Azul" class="rose" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="question">¿Quieres jugar algo?</div>
+<div class="btn-container">
+  <button id="yes">Sí</button>
+  <button id="no">No</button>
+</div>
+
+<div id="popup">
+  <div id="popup-question">¿Cuánto es 2 + 2?</div>
+  <input type="text" id="answer" autocomplete="off" />
+  <button id="submit-answer">Enviar</button>
+  <button id="retry" style="display:none;">Intentar de nuevo</button>
+</div>
+
+<div id="success-screen">
+  <div class="blur-text">lo lograste XD</div>
+  <canvas id="matrix-canvas"></canvas>
+</div>
+
+<script>
+  const envelope = document.getElementById('envelope');
+  const container = document.getElementById('container');
+  const question = document.getElementById('question');
+  const btnContainer = document.querySelector('.btn-container');
+  const yesBtn = document.getElementById('yes');
+  const noBtn = document.getElementById('no');
+  const popup = document.getElementById('popup');
+  const answerInput = document.getElementById('answer');
+  const submitAnswer = document.getElementById('submit-answer');
+  const retryBtn = document.getElementById('retry');
+  const successScreen = document.getElementById('success-screen');
+  const canvas = document.getElementById('matrix-canvas');
+  const ctx = canvas.getContext('2d');
+
+  let noCount = 0;
+  let matrixInterval;
+  let width = window.innerWidth;
+  let height = window.innerHeight;
+  canvas.width = width;
+  canvas.height = height;
+
+  const words = ['feliz', 'cumpleaños', 'te amo'];
+  const fontSize = 20;
+  const columns = Math.floor(width / fontSize);
+
+  // Drops para lluvia Matrix
+  const drops = [];
+  for (let i = 0; i < columns; i++) {
+    drops[i] = {
+      y: Math.floor(Math.random() * height / fontSize),
+      wordIndex: Math.floor(Math.random() * words.length)
+    };
+  }
+
+  envelope.addEventListener('click', () => {
+    envelope.classList.add('open');
+    container.classList.add('moved-up');
+
+    setTimeout(() => {
+      question.classList.add('visible');
+      btnContainer.classList.add('visible');
+    }, 1500);
+  });
+
+  noBtn.addEventListener('click', () => {
+    noCount++;
+    let noSize = Math.max(60 - noCount * 10, 30);
+    let yesSize = 100 + noCount * 10;
+    noBtn.style.width = noSize + 'px';
+    noBtn.style.fontSize = (noSize / 3) + 'px';
+
+    yesBtn.style.width = yesSize + 'px';
+    yesBtn.style.fontSize = (yesSize / 4) + 'px';
+
+    if (noSize <= 30) {
+      noBtn.textContent = 'Sí';
+      yesBtn.textContent = 'Sí';
+    }
+  });
+
+  yesBtn.addEventListener('click', () => {
+    popup.style.display = 'flex';
+    answerInput.value = '';
+    retryBtn.style.display = 'none';
+    answerInput.focus();
+  });
+
+  submitAnswer.addEventListener('click', () => {
+    const resp = answerInput.value.trim().toLowerCase();
+    if (resp === '4' || resp === 'cuatro') {
+      popup.style.display = 'none';
+      showSuccess();
+    } else {
+      retryBtn.style.display = 'inline-block';
+    }
+  });
+
+  retryBtn.addEventListener('click', () => {
+    answerInput.value = '';
+    answerInput.focus();
+    retryBtn.style.display = 'none';
+  });
+
+  function showSuccess() {
+    question.style.display = 'none';
+    btnContainer.style.display = 'none';
+    container.style.display = 'none';
+
+    successScreen.style.display = 'flex';
+
+    // Al primer clic en la pantalla de éxito, iniciar lluvia y fuegos artificiales
+    successScreen.addEventListener('click', (e) => {
+      startMatrixRain();
+      startFireworks(e.clientX, e.clientY);
+    }, { once: true });
+  }
+
+  function startMatrixRain() {
+    ctx.font = fontSize + "px monospace";
+
+    matrixInterval = setInterval(() => {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillStyle = '#ff66cc'; // rosado
+
+      for (let i = 0; i < columns; i++) {
+        const word = words[drops[i].wordIndex];
+        ctx.fillText(word, i * fontSize, drops[i].y * fontSize);
+
+        if (drops[i].y * fontSize > height && Math.random() > 0.975) {
+          drops[i].y = 0;
+          drops[i].wordIndex = (drops[i].wordIndex + 1) % words.length;
+        }
+
+        drops[i].y++;
+      }
+    }, 100); // más lento que antes (antes 50)
+  }
+
+  // Fuegos artificiales
+
+  function startFireworks(x, y) {
+    const colors = ['#ff4d4d', '#ff66cc', '#ffcc00', '#33cc33', '#3399ff', '#cc33ff'];
+    const particlesCount = 30;
+
+    for(let i=0; i<particlesCount; i++) {
+      createParticle(x, y, colors[Math.floor(Math.random()*colors.length)]);
+    }
+  }
+
+  function createParticle(x, y, color) {
+    const particle = document.createElement('div');
+    particle.classList.add('particle');
+    particle.style.backgroundColor = color;
+    particle.style.left = x + 'px';
+    particle.style.top = y + 'px';
+
+    const angle = Math.random() * 2 * Math.PI;
+    const speed = Math.random() * 4 + 2;
+
+    let vx = Math.cos(angle) * speed;
+    let vy = Math.sin(angle) * speed;
+    let life = 30;
+    let opacity = 1;
+
+    document.body.appendChild(particle);
+
+    function animate() {
+      if (life <= 0) {
+        particle.remove();
+        return;
+      }
+      vx *= 0.9;
+      vy += 0.15; // gravedad simulada
+      particle.style.left = (parseFloat(particle.style.left) + vx) + 'px';
+      particle.style.top = (parseFloat(particle.style.top) + vy) + 'px';
+
+      opacity -= 0.03;
+      particle.style.opacity = opacity;
+
+      life--;
+      requestAnimationFrame(animate);
+    }
+    animate();
+  }
+
+  // Ajustar canvas al redimensionar ventana
+  window.addEventListener('resize', () => {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+  });
+</script>
+
+</body>
+</html>
